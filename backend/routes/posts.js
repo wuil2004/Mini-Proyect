@@ -38,7 +38,6 @@ router.get('/', async (req, res) => {
 });
 
 // 2. Crear un nuevo post (POST) - ¡Soporta texto e imágenes en la nube!
-// Metemos 'upload.single('image')' para que intercepte el archivo llamado 'image'
 router.post('/', auth, upload.single('image'), async (req, res) => { 
   try {
     const { content } = req.body;
@@ -130,6 +129,53 @@ router.get('/profile/:username', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener el perfil' });
+  }
+});
+
+// 4. Eliminar un post (DELETE /api/posts/:id) - ¡Limpia MongoDB Y Cloudinary!
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    // 1. Buscamos el post en la base de datos
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Publicación no encontrada' });
+    }
+
+    // 2. Verificamos que el usuario logueado sea el dueño
+    if (post.author !== req.user.username) {
+      return res.status(403).json({ message: 'No tienes permiso para borrar este trino' });
+    }
+
+    // --- NUEVO: SI EL POST TIENE IMAGEN, LA BORRAMOS DE CLOUDINARY ---
+    if (post.image) {
+      try {
+        // Cloudinary necesita el "Public ID" (el nombre del archivo sin la URL completa)
+        // Ejemplo de URL: https://res.cloudinary.com/demo/image/upload/v1234/canary_posts/foto.jpg
+        // Queremos sacar: "canary_posts/foto"
+        const urlParts = post.image.split('/');
+        const folderAndFile = urlParts.slice(-2).join('/'); // Toma "canary_posts/foto.jpg"
+        const publicId = folderAndFile.split('.')[0]; // Quita el ".jpg" y deja "canary_posts/foto"
+
+        // Le pegamos a la API de Cloudinary para destruirla
+        await cloudinary.uploader.destroy(publicId);
+        console.log(`☁️ Imagen eliminada de Cloudinary: ${publicId}`);
+      } catch (cloudinaryError) {
+        // Si por algo falla Cloudinary, lo reportamos pero dejamos que el código siga para no trabar el borrado
+        console.log("⚠️ Error al borrar de Cloudinary, pero se continuará con MongoDB:", cloudinaryError);
+      }
+    }
+
+    // 3. Ahora sí, lo borramos de MongoDB
+    await post.deleteOne();
+
+    // 4. Le avisamos a todos por WebSockets
+    const io = req.app.get('socketio');
+    io.emit('post_deleted', req.params.id);
+
+    res.json({ message: 'Trino e imagen eliminados correctamente' });
+  } catch (error) {
+    console.log("Error al eliminar:", error);
+    res.status(500).json({ message: 'Error al eliminar la publicación', error });
   }
 });
 

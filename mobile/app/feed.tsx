@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Alert, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Alert, Image, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import io from 'socket.io-client';
@@ -32,6 +32,8 @@ export default function FeedScreen() {
   // --- NUEVOS ESTADOS PARA IMÁGENES Y CARGA ---
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  // --- ESTADO PARA VER FOTOS EN GRANDE ---
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearch[]>([]);
@@ -76,9 +78,15 @@ export default function FeedScreen() {
       );
     });
 
+    // --- ESCUCHA DE WEBSOCKET PARA BORRAR ---
+    socket.on('post_deleted', (idEliminado: string) => {
+      setPosts((postsAnteriores) => postsAnteriores.filter((post) => post._id !== idEliminado));
+    });
+
     return () => {
       socket.off('new_post');
       socket.off('post_liked');
+      socket.off('post_deleted');
     };
   }, []);
 
@@ -114,11 +122,11 @@ export default function FeedScreen() {
     }
   };
 
-  // --- NUEVO: Función para abrir la galería ---
+  // --- NUEVO: Función para abrir la galería (Sin Recorte) ---
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // Te deja recortar la foto
+      mediaTypes: ['images'],
+      allowsEditing: false, // NO pedir recortar la foto
       quality: 0.8, // Comprime un poco para que suba rápido
     });
 
@@ -179,6 +187,37 @@ export default function FeedScreen() {
     }
   };
 
+  // --- FUNCIÓN PARA ELIMINAR EL POST ---
+  const handleDeletePost = (postId: string) => {
+    Alert.alert(
+      "¿Eliminar trino?",
+      "Esta acción no se puede deshacer.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Eliminar", 
+          style: "destructive",
+          onPress: async () => {
+            const token = await SecureStore.getItemAsync('token');
+            try {
+              const response = await fetch(`http://${SERVER_IP}:4000/api/posts/${postId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await response.json();
+              
+              if (!response.ok) {
+                Alert.alert("Error", data.message || "No se pudo eliminar");
+              }
+            } catch (error) {
+              Alert.alert("Error", "Fallo de red al eliminar");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleLogout = async () => {
     await SecureStore.deleteItemAsync('token');
     await SecureStore.deleteItemAsync('username');
@@ -230,7 +269,10 @@ export default function FeedScreen() {
 
       {selectedProfile ? (
         <View style={styles.profileHeaderBox}>
-          <Text style={styles.profileName}>Perfil de @{selectedProfile}</Text>
+          {/* Título de perfil personalizado */}
+          <Text style={styles.profileName}>
+            {selectedProfile === currentUser ? "Mi Espacio Personal" : `Perfil de @${selectedProfile}`}
+          </Text>
           <Text style={styles.profileStats}>✨ {posts.length} Posts  |  ❤️ {profileLikes} Likes totales</Text>
           <TouchableOpacity style={styles.backButton} onPress={cargarFeedGeneral}>
             <Text style={styles.backButtonText}>⬅ Volver al Feed General</Text>
@@ -290,19 +332,31 @@ export default function FeedScreen() {
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item }) => (
           <View style={styles.postCard}>
-            <TouchableOpacity onPress={() => verPerfilUsuario(item.author)}>
-              <Text style={styles.postAuthor}>@{item.author}</Text>
-            </TouchableOpacity>
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <TouchableOpacity onPress={() => verPerfilUsuario(item.author)}>
+                <Text style={styles.postAuthor}>@{item.author}</Text>
+              </TouchableOpacity>
+
+              {/* MOSTRAR BASURERO SOLO SI ES TU PERFIL Y TU POST */}
+              {selectedProfile === currentUser && item.author === currentUser && (
+                <TouchableOpacity onPress={() => handleDeletePost(item._id)} style={styles.deleteButton}>
+                  <Text style={{ fontSize: 14 }}>🗑️</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             <Text style={styles.postContent}>{item.content}</Text>
             
-            {/* Renderizar imagen del post si existe en Cloudinary */}
+            {/* Renderizar imagen y permitir hacerla grande al tocarla */}
             {item.image && (
-              <Image 
-                source={{ uri: item.image }} 
-                style={styles.postImage} 
-                resizeMode="cover"
-              />
+              <TouchableOpacity onPress={() => setViewerImage(item.image || null)}>
+                <Image 
+                  source={{ uri: item.image }} 
+                  style={styles.postImage} 
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             )}
             
             <View style={styles.postFooter}>
@@ -318,6 +372,19 @@ export default function FeedScreen() {
           </View>
         )}
       />
+
+      {/* VISOR DE FOTOS EN PANTALLA COMPLETA */}
+      <Modal visible={!!viewerImage} transparent={true} animationType="fade">
+        <View style={styles.modalBackground}>
+          <TouchableOpacity style={styles.closeModalButton} onPress={() => setViewerImage(null)}>
+            <Text style={styles.closeModalText}>Cerrar ✕</Text>
+          </TouchableOpacity>
+          {viewerImage && (
+            <Image source={{ uri: viewerImage }} style={styles.fullScreenImage} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -354,4 +421,9 @@ const styles = StyleSheet.create({
   postDate: { color: '#888', fontSize: 12 },
   likeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff0f3', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 15 },
   likeText: { fontSize: 14, fontWeight: 'bold', color: '#e0245e', marginLeft: 6 },
+  deleteButton: { padding: 5, backgroundColor: '#f8d7da', borderRadius: 10 },
+  modalBackground: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.9)', justifyContent: 'center', alignItems: 'center' },
+  closeModalButton: { position: 'absolute', top: 40, right: 20, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 20 },
+  closeModalText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  fullScreenImage: { width: '100%', height: '80%' }
 });

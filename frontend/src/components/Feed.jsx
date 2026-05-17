@@ -8,9 +8,10 @@ const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [newContent, setNewContent] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
-  
-  // --- NUEVO ESTADO: Para saber si está subiendo la foto y bloquear el botón ---
   const [isPublishing, setIsPublishing] = useState(false);
+  
+  // --- NUEVO ESTADO: Para guardar la imagen que se va a mostrar en pantalla grande ---
+  const [viewerImage, setViewerImage] = useState(null);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -52,9 +53,14 @@ const Feed = () => {
       );
     });
 
+    socket.on("post_deleted", (idEliminado) => {
+      setPosts((postsAnteriores) => postsAnteriores.filter((post) => post._id !== idEliminado));
+    });
+
     return () => {
       socket.off("new_post");
       socket.off("post_liked");
+      socket.off("post_deleted");
     };
   }, [navigate]);
 
@@ -94,12 +100,9 @@ const Feed = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Si no hay texto o si YA está publicando, no hacemos nada (evita clones)
     if (!newContent.trim() || isPublishing) return;
 
-    // Bloqueamos el botón
     setIsPublishing(true);
-
     const token = localStorage.getItem("token");
     
     const formData = new FormData();
@@ -122,7 +125,6 @@ const Feed = () => {
     } catch (error) {
       console.error("Error al publicar:", error);
     } finally {
-      // Pase lo que pase (éxito o error), volvemos a desbloquear el botón al final
       setIsPublishing(false);
     }
   };
@@ -141,6 +143,29 @@ const Feed = () => {
     }
   };
 
+  const handleDeletePost = async (postId) => {
+    const confirmar = window.confirm("¿Seguro que quieres eliminar este trino? Esta acción no se puede deshacer.");
+    if (!confirmar) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`http://localhost:4000/api/posts/${postId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        alert(data.message || "Error al eliminar");
+      }
+    } catch (error) {
+      console.error("Error al eliminar post:", error);
+      alert("Error de conexión al eliminar");
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
@@ -150,7 +175,6 @@ const Feed = () => {
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto", padding: "1rem", position: "relative" }}>
       
-      {/* Header Superior */}
       <div
         style={{
           display: "flex",
@@ -192,7 +216,6 @@ const Feed = () => {
         </div>
       </div>
 
-      {/* Barra de Búsqueda */}
       <div style={{ marginBottom: "1.5rem", position: "relative" }}>
         <input
           type="text"
@@ -256,7 +279,9 @@ const Feed = () => {
             textAlign: "center"
           }}
         >
-          <h3 style={{ margin: "0 0 0.5rem 0" }}>Perfil de @{selectedProfile}</h3>
+          <h3 style={{ margin: "0 0 0.5rem 0" }}>
+            {selectedProfile === currentUser ? "Mi Espacio Personal" : `Perfil de @${selectedProfile}`}
+          </h3>
           <p style={{ color: "#666", margin: "0 0 1rem 0" }}>
             ✨ {posts.length} Publicaciones  |  ❤️ {profileLikes} Likes recibidos en total
           </p>
@@ -276,7 +301,6 @@ const Feed = () => {
           </button>
         </div>
       ) : (
-        /* Caja para redactar un post */
         <div
           style={{
             backgroundColor: "white",
@@ -315,17 +339,16 @@ const Feed = () => {
                 style={{ fontSize: "0.9rem" }}
               />
 
-              {/* --- BOTÓN ACTUALIZADO CON ESTADO DE CARGA --- */}
               <button
                 type="submit"
-                disabled={isPublishing} // Desactiva el clic en HTML
+                disabled={isPublishing}
                 style={{
                   padding: "0.6rem 1.5rem",
-                  backgroundColor: isPublishing ? "#88c9f9" : "#1d9bf0", // Se pone más claro si está cargando
+                  backgroundColor: isPublishing ? "#88c9f9" : "#1d9bf0",
                   color: "white",
                   border: "none",
                   borderRadius: "20px",
-                  cursor: isPublishing ? "not-allowed" : "pointer", // Cambia el cursor del mouse
+                  cursor: isPublishing ? "not-allowed" : "pointer",
                   fontWeight: "bold",
                 }}
               >
@@ -336,7 +359,6 @@ const Feed = () => {
         </div>
       )}
 
-      {/* Muro de publicaciones */}
       <div>
         {posts.map((post) => (
           <div
@@ -349,26 +371,49 @@ const Feed = () => {
               boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}
           >
-            <h4 
-              onClick={() => verPerfilUsuario(post.author)}
-              style={{ margin: "0 0 0.5rem 0", color: "#1d9bf0", cursor: "pointer", display: "inline-block" }}
-            >
-              @{post.author}
-            </h4>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <h4 
+                onClick={() => verPerfilUsuario(post.author)}
+                style={{ margin: 0, color: "#1d9bf0", cursor: "pointer" }}
+              >
+                @{post.author}
+              </h4>
+
+              {selectedProfile === currentUser && post.author === currentUser && (
+                <button
+                  onClick={() => handleDeletePost(post._id)}
+                  style={{
+                    background: "#f8d7da",
+                    border: "none",
+                    padding: "5px 10px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "1.1rem"
+                  }}
+                  title="Eliminar trino"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
+
             <p style={{ margin: 0, color: "#555", fontSize: "1.1rem" }}>
               {post.content}
             </p>
 
+            {/* --- ACTUALIZADO: Tocas la imagen y actualiza el estado del Visor --- */}
             {post.image && (
               <img 
                 src={post.image} 
                 alt="Imagen del trino" 
+                onClick={() => setViewerImage(post.image)}
                 style={{ 
                   width: "100%", 
                   borderRadius: "8px", 
                   marginTop: "1rem",
                   maxHeight: "400px",
-                  objectFit: "cover"
+                  objectFit: "cover",
+                  cursor: "pointer" // Cursor de manita para indicar que es clickeable
                 }} 
               />
             )}
@@ -405,6 +450,58 @@ const Feed = () => {
           </div>
         ))}
       </div>
+
+      {/* --- NUEVO: VISOR DE IMÁGENES EN PANTALLA COMPLETA PARA LA WEB --- */}
+      {viewerImage && (
+        <div 
+          onClick={() => setViewerImage(null)} // Cierra el visor si das clic en lo negro
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0,0,0,0.9)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+            cursor: "zoom-out" // Cursor que indica que se puede cerrar
+          }}
+        >
+          {/* Botón de cerrar explícito */}
+          <button 
+            onClick={() => setViewerImage(null)}
+            style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              background: "rgba(255,255,255,0.2)",
+              color: "white",
+              border: "none",
+              padding: "10px 15px",
+              borderRadius: "20px",
+              fontSize: "1.2rem",
+              cursor: "pointer"
+            }}
+          >
+            Cerrar ✕
+          </button>
+          
+          <img 
+            src={viewerImage} 
+            alt="Visor de imagen" 
+            style={{
+              maxWidth: "90%",
+              maxHeight: "90%",
+              objectFit: "contain",
+              borderRadius: "8px",
+              boxShadow: "0 0 20px rgba(0,0,0,0.5)"
+            }} 
+          />
+        </div>
+      )}
+
     </div>
   );
 };
