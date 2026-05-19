@@ -24,7 +24,7 @@ export default function LoginScreen() {
 
     try {
       // ⚠️ RECUERDA: Cambia "192.168.1.75" por la IP que te dio el comando 'hostname -I'
-      const response = await fetch(`http://192.168.0.111:4000${endpoint}`, { 
+      const response = await fetch(`http://192.168.2.46:4000${endpoint}`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyData),
