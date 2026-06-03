@@ -15,12 +15,12 @@ services:
     container_name: minitwitter-backend
     restart: always
     ports:
-      - "4000:4000"
+      - "5000:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
     environment:
-      - PORT=4000
+      - PORT=5000
       - MONGO_URI=mongodb://mongodb:27017/minitwitter
       - JWT_SECRET=MiSuperSecretoMiniTwitter2026
     depends_on:

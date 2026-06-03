@@ -9,7 +9,7 @@ const postSchema = new mongoose.Schema({
   author: {
     type: String,
     required: true,
-    default: "Anónimo" // Por ahora, en lo que armamos los usuarios
+    default: "Anónimo" 
   },
   image: {
     type: String,

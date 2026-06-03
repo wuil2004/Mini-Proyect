@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:4000");
+const socket = io("http://10.53.255.90:5000");
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -34,7 +34,6 @@ const Feed = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // --- NUEVO ESTADO: Controla la ventana de Seguidores / Siguiendo ---
   const [networkModal, setNetworkModal] = useState({ isOpen: false, title: "", users: [] });
 
   const navigate = useNavigate();
@@ -47,8 +46,8 @@ const Feed = () => {
     try {
       const token = localStorage.getItem("token");
       const baseUrl = type === "global" 
-        ? "http://localhost:4000/api/posts" 
-        : "http://localhost:4000/api/posts/feed/following";
+        ? "http://10.53.255.90:5000/api/posts" 
+        : "http://10.53.255.90:5000/api/posts/feed/following";
 
       const response = await fetch(`${baseUrl}?page=${nextPage}&limit=10`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -87,7 +86,7 @@ const Feed = () => {
   const loadMyData = async () => {
     try {
       const response = await fetch(
-        `http://localhost:4000/api/users/profile/${currentUser}`
+        `http://10.53.255.90:5000/api/users/profile/${currentUser}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -174,7 +173,7 @@ const Feed = () => {
     }
     try {
       const response = await fetch(
-        `http://localhost:4000/api/users/search?username=${texto}`
+        `http://10.53.255.90:5000/api/users/search?username=${texto}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -190,7 +189,7 @@ const Feed = () => {
       setSearchQuery("");
       setSearchResults([]);
       const response = await fetch(
-        `http://localhost:4000/api/users/profile/${username}`
+        `http://10.53.255.90:5000/api/users/profile/${username}`
       );
       if (!response.ok) return;
       const data = await response.json();
@@ -220,7 +219,7 @@ const Feed = () => {
     if (selectedImage) formData.append("image", selectedImage);
 
     try {
-      await fetch("http://localhost:4000/api/posts", {
+      await fetch("http://10.53.255.90:5000/api/posts", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -246,7 +245,7 @@ const Feed = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/users/profile/edit`,
+        `http://10.53.255.90:5000/api/users/profile/edit`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
@@ -271,7 +270,7 @@ const Feed = () => {
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(
-        `http://localhost:4000/api/users/profile/${selectedProfile.username}/follow`,
+        `http://10.53.255.90:5000/api/users/profile/${selectedProfile.username}/follow`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
@@ -285,7 +284,6 @@ const Feed = () => {
     }
   };
 
-  // --- NUEVA FUNCIÓN: Dejar de seguir desde la lista del Modal ---
   const handleUnfollowFromList = async (userToUnfollow) => {
     const confirmar = window.confirm(`¿Dejar de seguir a @${userToUnfollow}?`);
     if (!confirmar) return;
@@ -293,19 +291,17 @@ const Feed = () => {
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(
-        `http://localhost:4000/api/users/profile/${userToUnfollow}/follow`,
+        `http://10.53.255.90:5000/api/users/profile/${userToUnfollow}/follow`,
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
         }
       );
       if (response.ok) {
-        // Sacarlo visualmente de la lista del modal de inmediato
         setNetworkModal(prev => ({
           ...prev,
           users: prev.users.filter(u => u !== userToUnfollow)
         }));
-        // Actualizar los números del perfil de fondo
         verPerfilUsuario(selectedProfile.username);
       }
     } catch (error) {
@@ -316,7 +312,7 @@ const Feed = () => {
   const handleLike = async (postId) => {
     const token = localStorage.getItem("token");
     try {
-      await fetch(`http://localhost:4000/api/posts/${postId}/like`, {
+      await fetch(`http://10.53.255.90:5000/api/posts/${postId}/like`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -332,7 +328,7 @@ const Feed = () => {
     if (!confirmar) return;
     const token = localStorage.getItem("token");
     try {
-      await fetch(`http://localhost:4000/api/posts/${postId}`, {
+      await fetch(`http://10.53.255.90:5000/api/posts/${postId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -361,269 +357,278 @@ const Feed = () => {
     navigate("/login");
   };
 
-  // --- FUNCIÓN PARA ABRIR EL MODAL DE LISTAS ---
   const openNetworkModal = (title, usersList) => {
     setNetworkModal({ isOpen: true, title, users: usersList });
   };
 
+  const colors = {
+    bgAbsolute: "#000000",
+    bgCard: "#0d0d13",
+    textMain: "#ffffff",
+    textMuted: "#8e8e9f"
+  };
+
   return (
-    <div style={{ maxWidth: "600px", margin: "0 auto", padding: "1rem", position: "relative" }}>
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: colors.bgAbsolute, minHeight: "100vh", padding: "1.5rem 1rem", color: colors.textMain, boxSizing: "border-box" }}>
       
-      {pendingPosts.length > 0 && !selectedProfile && (
-        <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", zIndex: 100 }}>
-          <button
-            onClick={mostrarNuevosPosts}
-            style={{
-              backgroundColor: "#1d9bf0", color: "white", border: "none", padding: "10px 20px", borderRadius: "25px",
-              fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(0,0,0,0.2)", fontSize: "1rem",
-            }}
-          >
-            ↑ {pendingPosts.length} Trino{pendingPosts.length > 1 ? "s" : ""} nuevo{pendingPosts.length > 1 ? "s" : ""}
-          </button>
-        </div>
-      )}
+      <style>{`
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: #000000 !important;
+          width: 100%;
+          height: 100%;
+        }
+        @keyframes ledEffect {
+          0% { border-color: #00f7ff; box-shadow: 0 0 10px rgba(0, 247, 255, 0.3); }
+          25% { border-color: #ff00e0; box-shadow: 0 0 10px rgba(255, 0, 224, 0.3); }
+          50% { border-color: #ffea00; box-shadow: 0 0 10px rgba(255, 234, 0, 0.3); }
+          75% { border-color: #00ff66; box-shadow: 0 0 10px rgba(0, 255, 102, 0.3); }
+          100% { border-color: #00f7ff; box-shadow: 0 0 10px rgba(0, 247, 255, 0.3); }
+        }
+        .led-border {
+          border: 2px solid #00f7ff;
+          animation: ledEffect 8s linear infinite;
+        }
+        .led-border-fast {
+          border: 2px solid #00f7ff;
+          animation: ledEffect 4s linear infinite;
+        }
+      `}</style>
 
-      {/* --- HEADER --- */}
-      <div
-        style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem",
-          backgroundColor: "white", padding: "1rem", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-        }}
-      >
-        <h2 onClick={clickLogoGeneral} style={{ margin: 0, color: "#1d9bf0", cursor: "pointer" }}>
-          Canary 🐦
-        </h2>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <div onClick={() => verPerfilUsuario(currentUser)} style={{ display: "flex", alignItems: "center", cursor: "pointer", marginRight: "1rem" }}>
-            {myProfileData.profilePicture ? (
-              <img src={myProfileData.profilePicture} alt="Yo" style={{ width: "35px", height: "35px", borderRadius: "50%", marginRight: "8px", objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "35px", height: "35px", borderRadius: "50%", marginRight: "8px", backgroundColor: "#e1e8ed", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px" }}>👤</div>
-            )}
-            <span style={{ fontWeight: "bold" }}>@{currentUser}</span>
-          </div>
-          <button onClick={handleLogout} style={{ padding: "0.5rem 1rem", backgroundColor: "#dc3545", color: "white", border: "none", borderRadius: "20px", cursor: "pointer" }}>
-            Salir
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: "1.5rem", position: "relative" }}>
-        <input
-          type="text" placeholder="🔍 Buscar usuarios..." value={searchQuery} onChange={handleSearch}
-          style={{ width: "100%", padding: "0.7rem 1rem", borderRadius: "20px", border: "1px solid #ccc", boxSizing: "border-box", fontSize: "1rem" }}
-        />
-        {searchResults.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", borderRadius: "8px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)", zIndex: 100, marginTop: "5px" }}>
-            {searchResults.map((user) => (
-              <div key={user._id} onClick={() => verPerfilUsuario(user.username)} style={{ padding: "0.8rem 1rem", cursor: "pointer", fontWeight: "bold", color: "#1d9bf0", borderBottom: "1px solid #f0f2f5" }}>
-                @{user.username}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* --- SECCIÓN DE PERFIL --- */}
-      {selectedProfile ? (
-        <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "8px", marginBottom: "2rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", textAlign: "center", position: "relative" }}>
-          
-          {selectedProfile.username === currentUser && !isEditingProfile && (
+      <div style={{ maxWidth: "680px", margin: "0 auto", position: "relative" }}>
+        
+        {pendingPosts.length > 0 && !selectedProfile && (
+          <div style={{ position: "fixed", top: "24px", left: "50%", transform: "translateX(-50%)", zIndex: 100 }}>
             <button
-              onClick={() => { setEditBio(selectedProfile.bio); setIsEditingProfile(true); }}
-              style={{ position: "absolute", top: "15px", right: "15px", background: "none", border: "1px solid #ccc", borderRadius: "20px", padding: "5px 15px", cursor: "pointer", fontWeight: "bold" }}
-            >
-              ✏️ Editar
-            </button>
-          )}
-
-          {selectedProfile.username !== currentUser && (
-            <button
-              onClick={handleFollow}
+              onClick={mostrarNuevosPosts}
               style={{
-                position: "absolute", top: "15px", right: "15px", border: "none", borderRadius: "20px", padding: "6px 18px", cursor: "pointer", fontWeight: "bold", color: "white",
-                backgroundColor: selectedProfile.followers.includes(currentUser) ? "#dc3545" : "#1d9bf0", 
+                backgroundColor: "#ff00e0", color: "white", border: "none", padding: "12px 28px", borderRadius: "9999px",
+                fontWeight: "800", cursor: "pointer", boxShadow: "0 0 15px rgba(255, 0, 224, 0.6)", fontSize: "1rem", textTransform: "uppercase"
               }}
             >
-              {selectedProfile.followers.includes(currentUser) ? "Dejar de seguir" : "Seguir"}
+              ↑ {pendingPosts.length} Trino{pendingPosts.length > 1 ? "s" : ""} nuevo{pendingPosts.length > 1 ? "s" : ""}
             </button>
-          )}
+          </div>
+        )}
 
-          {isEditingProfile ? (
-            <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-              <h3>Editar mi perfil</h3>
-              <label style={{ width: "100%", textAlign: "left", fontWeight: "bold", fontSize: "0.9rem" }}>Nueva foto de perfil:</label>
-              <input type="file" accept="image/*" onChange={(e) => setEditAvatar(e.target.files[0])} style={{ width: "100%", marginBottom: "10px" }} />
-              <label style={{ width: "100%", textAlign: "left", fontWeight: "bold", fontSize: "0.9rem" }}>Biografía:</label>
-              <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} maxLength={160} style={{ width: "100%", height: "60px", padding: "10px", borderRadius: "8px", border: "1px solid #ccc", resize: "none" }} />
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                <button type="button" onClick={() => setIsEditingProfile(false)} style={{ padding: "8px 20px", borderRadius: "20px", border: "1px solid #ccc", cursor: "pointer", background: "white" }}>Cancelar</button>
-                <button type="submit" disabled={isSavingProfile} style={{ padding: "8px 20px", borderRadius: "20px", border: "none", cursor: "pointer", background: "#1d9bf0", color: "white", fontWeight: "bold" }}>
-                  {isSavingProfile ? "Guardando..." : "Guardar cambios"}
+        {/* Header */}
+        <div className="led-border" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", backgroundColor: colors.bgCard, padding: "1.25rem 2rem", borderRadius: "20px" }}>
+          <h2 onClick={clickLogoGeneral} style={{ margin: 0, color: "#00f7ff", cursor: "pointer", fontWeight: "900", fontSize: "1.75rem", display: "flex", alignItems: "center", gap: "10px" }}>
+            Canary <span style={{ fontSize: "1.4rem" }}>🐦</span>
+          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div onClick={() => verPerfilUsuario(currentUser)} style={{ display: "flex", alignItems: "center", cursor: "pointer", padding: "6px 16px", borderRadius: "9999px", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)" }}>
+              {myProfileData.profilePicture ? (
+                <img src={myProfileData.profilePicture} alt="Yo" style={{ width: "36px", height: "36px", borderRadius: "50%", marginRight: "10px", objectFit: "cover", border: "2px solid #ff00e0" }} />
+              ) : (
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", marginRight: "10px", backgroundColor: "#000000", display: "flex", justifyContent: "center", alignItems: "center" }}>👤</div>
+              )}
+              <span style={{ fontWeight: "700", fontSize: "0.95rem" }}>@{currentUser}</span>
+            </div>
+            <button onClick={handleLogout} style={{ padding: "0.6rem 1.4rem", backgroundColor: "transparent", color: "#ff4d4d", border: "2px solid #ff4d4d", borderRadius: "9999px", cursor: "pointer", fontWeight: "700", fontSize: "0.9rem" }}>
+              Salir
+            </button>
+          </div>
+        </div>
+
+        {/* Barra de búsqueda */}
+        <div style={{ marginBottom: "2rem", position: "relative" }}>
+          <input
+            type="text" placeholder="Buscar usuarios..." value={searchQuery} onChange={handleSearch}
+            className="led-border"
+            style={{ width: "100%", padding: "1rem 1.5rem", borderRadius: "15px", boxSizing: "border-box", fontSize: "1rem", backgroundColor: colors.bgCard, outline: "none", color: colors.textMain }}
+          />
+          {searchResults.length > 0 && (
+            <div className="led-border" style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: colors.bgCard, borderRadius: "15px", zIndex: 100, marginTop: "8px", overflow: "hidden" }}>
+              {searchResults.map((user) => (
+                <div key={user._id} onClick={() => verPerfilUsuario(user.username)} style={{ padding: "1rem 1.5rem", cursor: "pointer", fontWeight: "700", color: "#ff00e0", borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  @{user.username}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Vista de Perfil */}
+        {selectedProfile ? (
+          <div className="led-border" style={{ padding: "2.5rem", borderRadius: "24px", marginBottom: "2.5rem", textAlign: "center", position: "relative", backgroundColor: colors.bgCard }}>
+            {selectedProfile.username === currentUser && !isEditingProfile && (
+              <button
+                onClick={() => { setEditBio(selectedProfile.bio); setIsEditingProfile(true); }}
+                style={{ position: "absolute", top: "24px", right: "24px", backgroundColor: "transparent", border: "2px solid #8e8e9f", borderRadius: "9999px", padding: "8px 18px", cursor: "pointer", fontWeight: "700", color: "#8e8e9f" }}
+              >
+                Editar Perfil
+              </button>
+            )}
+
+            {selectedProfile.username !== currentUser && (
+              <button
+                onClick={handleFollow}
+                style={{
+                  position: "absolute", top: "24px", right: "24px", border: "none", borderRadius: "9999px", padding: "10px 24px", cursor: "pointer", fontWeight: "800", color: "white",
+                  backgroundColor: selectedProfile.followers.includes(currentUser) ? "#ff4d4d" : "#00f7ff"
+                }}
+              >
+                {selectedProfile.followers.includes(currentUser) ? "Dejar de seguir" : "Seguir"}
+              </button>
+            )}
+
+            {isEditingProfile ? (
+              <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "16px", width: "100%", boxSizing: "border-box" }}>
+                <h3 style={{ margin: "0 0 12px 0", fontSize: "1.4rem", fontWeight: "900", color: "#00f7ff" }}>Editar Perfil</h3>
+                <input type="file" accept="image/*" onChange={(e) => setEditAvatar(e.target.files[0])} style={{ width: "100%", color: colors.textMuted }} />
+                <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} maxLength={160} className="led-border" style={{ width: "100%", height: "90px", padding: "14px", borderRadius: "10px", resize: "none", outline: "none", fontSize: "1rem", boxSizing: "border-box", backgroundColor: "#000000", color: colors.textMain }} />
+                <div style={{ display: "flex", gap: "16px", width: "100%", justifyContent: "flex-end" }}>
+                  <button type="button" onClick={() => setIsEditingProfile(false)} style={{ padding: "10px 24px", borderRadius: "9999px", background: "#000000", border: "2px solid #ff4d4d", color: "#ff4d4d", fontWeight: "700", cursor: "pointer" }}>Cancelar</button>
+                  <button type="submit" className="led-border-fast" disabled={isSavingProfile} style={{ padding: "10px 24px", borderRadius: "9999px", background: "#000000", color: "#ffffff", fontWeight: "800", cursor: "pointer" }}>
+                    {isSavingProfile ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {selectedProfile.profilePicture ? (
+                  <img src={selectedProfile.profilePicture} alt="Avatar" style={{ width: "110px", height: "110px", borderRadius: "50%", objectFit: "cover", margin: "0 auto 16px auto", border: "3px solid #00f7ff" }} />
+                ) : (
+                  <div style={{ width: "110px", height: "110px", borderRadius: "50%", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", margin: "0 auto 16px auto", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "40px" }}>👤</div>
+                )}
+                <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.7rem", fontWeight: "900", color: "#ff00e0" }}>
+                  {selectedProfile.username === currentUser ? "Mi Perfil" : `@${selectedProfile.username}`}
+                </h3>
+                <p style={{ color: colors.textMuted, fontSize: "1rem", margin: "0 0 1.5rem 0" }}>
+                  {selectedProfile.bio ? `"${selectedProfile.bio}"` : "Sin biografía aún."}
+                </p>
+
+                <div style={{ display: "flex", justifyContent: "center", gap: "28px", padding: "16px 0", marginBottom: "1.75rem", backgroundColor: "#000000", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div><span onClick={() => openNetworkModal("Siguiendo", selectedProfile.following)} style={{ color: "white", fontWeight: "800", cursor: "pointer", fontSize: "1.3rem", display: "block" }}>{selectedProfile.following.length}</span> siguiendo</div>
+                  <div><span onClick={() => openNetworkModal("Seguidores", selectedProfile.followers)} style={{ color: "white", fontWeight: "800", cursor: "pointer", fontSize: "1.3rem", display: "block" }}>{selectedProfile.followers.length}</span> seguidores</div>
+                  <div><span style={{ color: "#ff00e0", fontWeight: "800", fontSize: "1.3rem", display: "block" }}>{profileLikes}</span> likes</div>
+                </div>
+
+                <button onClick={clickLogoGeneral} className="led-border-fast" style={{ padding: "0.7rem 1.8rem", backgroundColor: "#000000", color: "#ffffff", borderRadius: "9999px", cursor: "pointer", fontWeight: "800" }}>
+                  ← Volver al Muro
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          /* Crear Publicación */
+          <div className="led-border" style={{ padding: "1.5rem", borderRadius: "20px", marginBottom: "2rem", backgroundColor: colors.bgCard }}>
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                {myProfileData.profilePicture ? (
+                  <img src={myProfileData.profilePicture} alt="Yo" style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover", border: "2px solid #00f7ff" }} />
+                ) : (
+                  <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", display: "flex", justifyContent: "center", alignItems: "center" }}>👤</div>
+                )}
+                <textarea placeholder="¿Qué estás pensando?..." value={newContent} onChange={(e) => setNewContent(e.target.value)} maxLength={280} style={{ width: "100%", height: "100px", padding: "0.5rem 0", border: "none", backgroundColor: "transparent", resize: "none", boxSizing: "border-box", fontSize: "1.1rem", outline: "none", color: colors.textMain }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "14px" }}>
+                <input type="file" id="imageInput" accept="image/*" onChange={(e) => setSelectedImage(e.target.files[0])} style={{ color: colors.textMuted }} />
+                <button type="submit" className="led-border-fast" disabled={isPublishing} style={{ padding: "0.7rem 1.8rem", backgroundColor: isPublishing ? "#000000" : "#000000", color: "#ffffff", borderRadius: "9999px", cursor: "pointer", fontWeight: "800" }}>
+                  {isPublishing ? "Enviando..." : "Subir"}
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Filtros Global / Siguiendo */}
+        {!selectedProfile && (
+          <div style={{ display: "flex", marginBottom: "1.5rem", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "15px", padding: "6px" }}>
+            <button onClick={() => setFeedType("global")} className={feedType === "global" ? "led-border-fast" : ""} style={{ flex: 1, padding: "12px", background: feedType === "global" ? "#0d0d13" : "none", border: "2px solid transparent", borderRadius: "10px", fontWeight: "800", color: "white", cursor: "pointer" }}>
+              Global 🌍
+            </button>
+            <button onClick={() => setFeedType("following")} className={feedType === "following" ? "led-border-fast" : ""} style={{ flex: 1, padding: "12px", background: feedType === "following" ? "#0d0d13" : "none", border: "2px solid transparent", borderRadius: "10px", fontWeight: "800", color: "white", cursor: "pointer" }}>
+              Siguiendo 👥
+            </button>
+          </div>
+        )}
+
+        {/* Lista de Publicaciones */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          {posts.length === 0 ? (
+            <div className="led-border" style={{ textAlign: 'center', padding: '4rem 2rem', color: colors.textMuted, backgroundColor: colors.bgCard, borderRadius: "16px" }}>
+              {feedType === "following" ? "No sigues a nadie o tus amigos no han publicado nada." : "No hay publicaciones en este momento."}
+            </div>
           ) : (
-            <>
-              {selectedProfile.profilePicture ? (
-                <img src={selectedProfile.profilePicture} alt="Avatar" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", margin: "0 auto 10px auto", border: "3px solid #1d9bf0" }} />
-              ) : (
-                <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#e1e8ed", margin: "0 auto 10px auto", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "40px" }}>👤</div>
-              )}
-
-              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.5rem" }}>
-                {selectedProfile.username === currentUser ? "Mi Espacio Personal" : `@${selectedProfile.username}`}
-              </h3>
-
-              <p style={{ color: "#333", fontSize: "1rem", fontStyle: "italic", marginBottom: "0.5rem", padding: "0 20px" }}>
-                "{selectedProfile.bio}"
-              </p>
-
-              {/* --- ACTUALIZADO: Los números ahora son botones clickeables que abren el Modal --- */}
-              <p style={{ color: "#666", fontSize: "0.95rem", margin: "0 0 1rem 0" }}>
-                🤝 <span onClick={() => openNetworkModal("Siguiendo", selectedProfile.following)} style={{ color: "#1d9bf0", fontWeight: "bold", cursor: "pointer", textDecoration: "underline" }}>{selectedProfile.following.length}</span> Siguiendo  |  
-                👥 <span onClick={() => openNetworkModal("Seguidores", selectedProfile.followers)} style={{ color: "#1d9bf0", fontWeight: "bold", cursor: "pointer", textDecoration: "underline" }}>{selectedProfile.followers.length}</span> Followers  |  
-                ❤️ <span style={{ color: "#e0245e", fontWeight: "bold" }}>{profileLikes}</span> Likes
-              </p>
-
-              <button onClick={clickLogoGeneral} style={{ padding: "0.5rem 1.5rem", backgroundColor: "#1d9bf0", color: "white", border: "none", borderRadius: "20px", cursor: "pointer", fontWeight: "bold" }}>
-                ⬅ Volver al Muro
-              </button>
-            </>
+            posts.map((post) => {
+              const safeLikes = Array.isArray(post.likes) ? post.likes : [];
+              return (
+                <div key={post._id} className="led-border" style={{ backgroundColor: colors.bgCard, padding: "1.5rem", borderRadius: "20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                    <div onClick={() => verPerfilUsuario(post.author)} style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      {post.authorAvatar ? (
+                        <img src={post.authorAvatar} alt="Avatar" style={{ width: "40px", height: "40px", borderRadius: "50%", marginRight: "12px", objectFit: "cover", border: "2px solid #00f7ff" }} />
+                      ) : (
+                        <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.1)", marginRight: "12px", display: "flex", justifyContent: "center", alignItems: "center" }}>👤</div>
+                      )}
+                      <h4 style={{ margin: 0, color: colors.textMain, fontWeight: "800" }}>@{post.author}</h4>
+                    </div>
+                    {selectedProfile?.username === currentUser && post.author === currentUser && (
+                      <button onClick={() => handleDeletePost(post._id)} style={{ background: "transparent", border: "2px solid #ff4d4d", width: "36px", height: "36px", borderRadius: "50%", cursor: "pointer", color: "#ff4d4d" }}>🗑️</button>
+                    )}
+                  </div>
+                  
+                  <div style={{ paddingLeft: "52px" }}>
+                    <p style={{ margin: 0, color: colors.textMain, fontSize: "1.05rem", whiteSpace: "pre-wrap" }}>{post.content}</p>
+                    {post.image && (
+                      <div className="led-border-fast" style={{ overflow: "hidden", borderRadius: "15px", marginTop: "14px", maxHeight: "400px", backgroundColor: "black" }}>
+                        <img src={post.image} alt="Adjunto" onClick={() => setViewerImage(post.image)} style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "zoom-in", display: "block" }} />
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1.25rem" }}>
+                      <span style={{ color: colors.textMuted, fontSize: "0.85rem" }}>{new Date(post.createdAt).toLocaleString()}</span>
+                      <button onClick={() => handleLike(post._id)} style={{ background: "none", border: "none", cursor: "pointer", color: safeLikes.includes(currentUser) ? "#ff00e0" : colors.textMuted, fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span>{safeLikes.includes(currentUser) ? "❤️" : "🤍"}</span> {safeLikes.length}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
-      ) : (
-        <div style={{ backgroundColor: "white", padding: "1rem", borderRadius: "8px", marginBottom: "2rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", gap: "10px" }}>
-              {myProfileData.profilePicture ? (
-                <img src={myProfileData.profilePicture} alt="Yo" style={{ width: "45px", height: "45px", borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "45px", height: "45px", borderRadius: "50%", backgroundColor: "#e1e8ed", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "20px" }}>👤</div>
-              )}
-              <textarea placeholder="¿Qué vas a cantar hoy?..." value={newContent} onChange={(e) => setNewContent(e.target.value)} maxLength={280} style={{ width: "100%", height: "80px", padding: "0.8rem", borderRadius: "8px", border: "none", backgroundColor: "#f0f2f5", resize: "none", boxSizing: "border-box", fontSize: "1.1rem" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <input type="file" id="imageInput" accept="image/*" onChange={(e) => setSelectedImage(e.target.files[0])} style={{ fontSize: "0.9rem" }} />
-              <button type="submit" disabled={isPublishing} style={{ padding: "0.6rem 1.5rem", backgroundColor: isPublishing ? "#88c9f9" : "#1d9bf0", color: "white", border: "none", borderRadius: "20px", cursor: isPublishing ? "not-allowed" : "pointer", fontWeight: "bold" }}>
-                {isPublishing ? "Trinando..." : "Trinar"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
-      {!selectedProfile && (
-        <div style={{ display: "flex", borderBottom: "1px solid #e1e8ed", marginBottom: "1rem", backgroundColor: "white", borderRadius: "8px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <button 
-            onClick={() => setFeedType("global")}
-            style={{ flex: 1, padding: "14px", background: "none", border: "none", borderBottom: feedType === "global" ? "4px solid #1d9bf0" : "none", fontWeight: "bold", color: feedType === "global" ? "#1d9bf0" : "#666", cursor: "pointer", transition: "all 0.2s" }}
-          >
-            Global 🌍
-          </button>
-          <button 
-            onClick={() => setFeedType("following")}
-            style={{ flex: 1, padding: "14px", background: "none", border: "none", borderBottom: feedType === "following" ? "4px solid #1d9bf0" : "none", fontWeight: "bold", color: feedType === "following" ? "#1d9bf0" : "#666", cursor: "pointer", transition: "all 0.2s" }}
-          >
-            Siguiendo 👥
-          </button>
-        </div>
-      )}
-
-      <div>
-        {posts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#888', backgroundColor: 'white', borderRadius: '8px' }}>
-            {feedType === "following" ? "🐦 Aún no sigues a nadie, ¡busca usuarios en la barra o explora el Feed Global!" : "No hay publicaciones disponibles."}
-          </div>
-        ) : (
-          posts.map((post) => {
-            const safeLikes = Array.isArray(post.likes) ? post.likes : [];
-            return (
-              <div key={post._id} style={{ backgroundColor: "white", padding: "1rem", borderRadius: "8px", marginBottom: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <div onClick={() => verPerfilUsuario(post.author)} style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                    {post.authorAvatar ? (
-                      <img src={post.authorAvatar} alt="Avatar" style={{ width: "35px", height: "35px", borderRadius: "50%", marginRight: "10px", objectFit: "cover" }} />
-                    ) : (
-                      <div style={{ width: "35px", height: "35px", borderRadius: "50%", backgroundColor: "#e1e8ed", marginRight: "10px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "18px" }}>👤</div>
-                    )}
-                    <h4 style={{ margin: 0, color: "#1d9bf0" }}>@{post.author}</h4>
-                  </div>
-                  {selectedProfile?.username === currentUser && post.author === currentUser && (
-                    <button onClick={() => handleDeletePost(post._id)} style={{ background: "#f8d7da", border: "none", padding: "5px 10px", borderRadius: "8px", cursor: "pointer", fontSize: "1.1rem" }} title="Eliminar trino">🗑️</button>
-                  )}
-                </div>
-                <p style={{ margin: 0, color: "#333", fontSize: "1.1rem", paddingLeft: "45px" }}>{post.content}</p>
-                {post.image && (
-                  <img src={post.image} alt="Imagen del trino" onClick={() => setViewerImage(post.image)} style={{ width: "calc(100% - 45px)", marginLeft: "45px", borderRadius: "12px", marginTop: "10px", maxHeight: "400px", objectFit: "cover", cursor: "pointer" }} />
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem", paddingLeft: "45px" }}>
-                  <small style={{ color: "#aaa" }}>{new Date(post.createdAt).toLocaleString()}</small>
-                  <button onClick={() => handleLike(post._id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#e0245e", fontWeight: "bold", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "5px" }}>
-                    {safeLikes.includes(currentUser) ? "❤️" : "🤍"} {safeLikes.length}
-                  </button>
-                </div>
-              </div>
-            );
-          })
+        {loadingMore && (
+          <div style={{ textAlign: "center", padding: "2rem", color: "#00f7ff", fontWeight: "700" }}>Cargando más...</div>
         )}
-      </div>
 
-      {loadingMore && (
-        <div style={{ textAlign: "center", padding: "10px", fontWeight: "bold", color: "#1d9bf0" }}>
-          🔄 Cargando más trinos cantarines...
-        </div>
-      )}
+        {/* Lightbox */}
+        {viewerImage && (
+          <div onClick={() => setViewerImage(null)} style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.95)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, cursor: "zoom-out" }}>
+            <img src={viewerImage} alt="Completa" className="led-border" style={{ maxWidth: "90%", maxHeight: "85vh", objectFit: "contain", borderRadius: "15px" }} />
+          </div>
+        )}
 
-      {viewerImage && (
-        <div onClick={() => setViewerImage(null)} style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.9)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, cursor: "zoom-out" }}>
-          <button onClick={() => setViewerImage(null)} style={{ position: "absolute", top: "20px", right: "20px", background: "rgba(255,255,255,0.2)", color: "white", border: "none", padding: "10px 15px", borderRadius: "20px", fontSize: "1.2rem", cursor: "pointer" }}>Cerrar ✕</button>
-          <img src={viewerImage} alt="Visor" style={{ maxWidth: "90%", maxHeight: "90%", objectFit: "contain", borderRadius: "8px", boxShadow: "0 0 20px rgba(0,0,0,0.5)" }} />
-        </div>
-      )}
-
-      {/* --- NUEVO: MODAL PARA VER SEGUIDORES Y SIGUIENDO --- */}
-      {networkModal.isOpen && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000 }}>
-          <div style={{ backgroundColor: "white", width: "90%", maxWidth: "400px", borderRadius: "12px", padding: "1.5rem", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 4px 15px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", paddingBottom: "10px", marginBottom: "15px" }}>
-              <h3 style={{ margin: 0, color: "#333" }}>{networkModal.title} ({networkModal.users.length})</h3>
-              <button onClick={() => setNetworkModal({ isOpen: false, title: "", users: [] })} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#aaa" }}>✕</button>
-            </div>
-            
-            {networkModal.users.length === 0 ? (
-              <p style={{ textAlign: "center", color: "#888", fontStyle: "italic" }}>No hay usuarios en esta lista aún.</p>
-            ) : (
+        {/* Modal Seguidores */}
+        {networkModal.isOpen && (
+          <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000 }}>
+            <div className="led-border" style={{ width: "90%", maxWidth: "450px", borderRadius: "20px", padding: "2rem", maxHeight: "75vh", overflowY: "auto", backgroundColor: colors.bgCard }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "14px", marginBottom: "18px" }}>
+                <h3 style={{ margin: 0 }}>{networkModal.title} ({networkModal.users.length})</h3>
+                <button onClick={() => setNetworkModal({ isOpen: false, title: "", users: [] })} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "white" }}>✕</button>
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {networkModal.users.map((username) => (
-                  <div key={username} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", backgroundColor: "#f9f9f9", borderRadius: "8px" }}>
-                    <span 
-                      style={{ fontWeight: "bold", color: "#1d9bf0", cursor: "pointer" }}
-                      onClick={() => {
-                        setNetworkModal({ isOpen: false, title: "", users: [] });
-                        verPerfilUsuario(username);
-                      }}
-                    >
+                  <div key={username} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", backgroundColor: "#000000", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px" }}>
+                    <span style={{ fontWeight: "700", color: "#00f7ff", cursor: "pointer" }} onClick={() => { setNetworkModal({ isOpen: false, title: "", users: [] }); verPerfilUsuario(username); }}>
                       @{username}
                     </span>
-                    
-                    {/* Botón rápido para dejar de seguir (Solo si es mi propia lista de "Siguiendo") */}
                     {networkModal.title === "Siguiendo" && selectedProfile?.username === currentUser && (
-                      <button 
-                        onClick={() => handleUnfollowFromList(username)}
-                        style={{ backgroundColor: "#dc3545", color: "white", border: "none", padding: "5px 10px", borderRadius: "15px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "bold" }}
-                      >
+                      <button onClick={() => handleUnfollowFromList(username)} style={{ backgroundColor: "transparent", color: "#ff4d4d", border: "2px solid #ff4d4d", padding: "6px 12px", borderRadius: "9999px", cursor: "pointer", fontSize: "0.85rem" }}>
                         Dejar de seguir
                       </button>
                     )}
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
+      </div>
     </div>
   );
 };
